@@ -3,11 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import 'package:user_app/global/global.dart';
-import 'package:user_app/utils/google_map_dark.dart';
-
-import '../authentication/login_screen.dart';
-
 class MainScreen extends StatefulWidget {
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -16,12 +11,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final Completer<GoogleMapController> _controllerGoogleMap =
       Completer<GoogleMapController>();
-  GoogleMapController? newGoogleMapController;    
+  GoogleMapController? newGoogleMapController;
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
     zoom: 14.4746,
   );
-  blackThemeGoogleMap(){
+  blackThemeGoogleMap() {
     newGoogleMapController!.setMapStyle('''
                     [
                       {
@@ -186,6 +181,7 @@ class _MainScreenState extends State<MainScreen> {
                     ]
                 ''');
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -197,9 +193,8 @@ class _MainScreenState extends State<MainScreen> {
             myLocationEnabled: true,
             onMapCreated: (GoogleMapController controller) {
               _controllerGoogleMap.complete(controller);
-              newGoogleMapController=controller;
+              newGoogleMapController = controller;
               blackThemeGoogleMap();
-              
             },
           ),
         ],
