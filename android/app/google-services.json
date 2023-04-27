@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "659280792598",
+    "firebase_url": "https://geltaksi-99796-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "geltaksi-99796",
+    "storage_bucket": "geltaksi-99796.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659280792598:android:d564c031f478a579427937",
+        "android_client_info": {
+          "package_name": "com.example.driver_taksi"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659280792598-efb84jqgui6ig8241p4bdtllfifq2lj8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC96xeeCTmP-YIOuxx_d-c28e34QilPMq8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659280792598-efb84jqgui6ig8241p4bdtllfifq2lj8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659280792598:android:4580c0deb697c948427937",
+        "android_client_info": {
+          "package_name": "com.example.user_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659280792598-efb84jqgui6ig8241p4bdtllfifq2lj8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC96xeeCTmP-YIOuxx_d-c28e34QilPMq8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659280792598-efb84jqgui6ig8241p4bdtllfifq2lj8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
