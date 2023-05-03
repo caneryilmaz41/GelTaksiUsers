@@ -60,8 +60,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           "email":emailTextEditingController.text.trim(),
           "phone":phoneTextEditingController.text.trim()
         };
-      DatabaseReference driversRef= FirebaseDatabase.instance.ref().child("users");
-      driversRef.child(firebaseUser.uid).set(userMap);
+      DatabaseReference reference= FirebaseDatabase.instance.ref().child("users");
+      reference.child(firebaseUser.uid).set(userMap);
       currenFirebaseUser=firebaseUser;
       Fluttertoast.showToast(msg: 'Hesabınız başarılı bir şekilde oluşturuldu');
       Navigator.push(context, MaterialPageRoute(builder:(c)=>MySplashScreen()));

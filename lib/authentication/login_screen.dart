@@ -1,5 +1,6 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:user_app/authentication/signup_screen.dart';
@@ -49,10 +50,20 @@ class _LoginScreenState extends State<LoginScreen> {
       ).user;
       if(firebaseUser!=null){
         
-      currenFirebaseUser=firebaseUser;
+        DatabaseReference driversRef= FirebaseDatabase.instance.ref().child("users");
+      driversRef.child(firebaseUser.uid).once().then((driverKey) {
+        final snap=driverKey.snapshot;
+        if(snap.value!=null){
+          currenFirebaseUser=firebaseUser;
       Fluttertoast.showToast(msg: 'Giriş Başarılı');
       Navigator.push(context, MaterialPageRoute(builder:(c)=>MySplashScreen()));
-      
+        }else{
+          Fluttertoast.showToast(msg: 'Geçersiz Kulanıcı Bilgileri');
+          fAuth.signOut();
+          Navigator.push(context, MaterialPageRoute(builder:(c)=>MySplashScreen()));
+        }
+
+      });
       }else{
         Navigator.pop(context);
         Fluttertoast.showToast(msg: 'Giriş Yapılamadı.');
