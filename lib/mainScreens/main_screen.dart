@@ -1,14 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:user_app/assistans/assistants_methods.dart';
+import 'package:user_app/assistans/geofire_assistants.dart';
 import 'package:user_app/global/global.dart';
 import 'package:user_app/infoHandler/app_info.dart';
+import 'package:user_app/main.dart';
 import 'package:user_app/mainScreens/search_places_screen.dart';
+import 'package:user_app/models/active_nearby_avaliable_drivers.dart';
+import 'package:user_app/splash_Screen/splash_screen.dart';
 import 'package:user_app/utils/constants.dart';
 import 'package:user_app/widgets/my_drawer.dart';
 import 'package:user_app/widgets/progress_dialog.dart';
@@ -39,6 +45,9 @@ class _MainScreenState extends State<MainScreen> {
   String userName = 'your name';
   String userEmail = 'your email';
   bool openNavigationDrawer = true;
+  bool activeNearbyDriverKeysLoaded = false;
+  BitmapDescriptor? activeNearbyIcon;
+  List<ActiveNearbyAvaliableDrivers> onlineNearByAvailableDriversList = [];
   blackThemeGoogleMap() {
     newGoogleMapController!.setMapStyle('''
                     [
@@ -228,6 +237,7 @@ class _MainScreenState extends State<MainScreen> {
     print('senin adres= ' + humanReadableAdress);
     userName = userModelCurrentInfo!.name!;
     userEmail = userModelCurrentInfo!.email!;
+    initilaizeGeoFireListener();
   }
 
   @override
@@ -237,8 +247,35 @@ class _MainScreenState extends State<MainScreen> {
     checkIfPermissionAllowed();
   }
 
+  saveRideRequestInformation() {
+    //taksi isteğini kaydet
+    onlineNearByAvailableDriversList =
+        GeofireAssistants.activeNearbyAvaliableDriversList;
+    searchNearestOnlineDrivers();
+  }
+
+  searchNearestOnlineDrivers() async {
+    if (onlineNearByAvailableDriversList.length == 0) {
+      setState(() {
+        polyLineSet.clear();
+        markerSet.clear();
+        circlesSet.clear();
+        pLineCoordinatesList.clear();
+      });
+      Fluttertoast.showToast(msg: 'Yakında müsait taksi yok.');
+      Fluttertoast.showToast(msg: 'Daha sonra tekrar deneyin,Uygulam Yeniden Başlatılıyor..');
+      Future.delayed(const Duration(milliseconds: 4000), () {
+        Navigator.push(context,MaterialPageRoute(builder:(c)=>MySplashScreen()));
+        
+      });
+
+      return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    createActiveNearByDriverIconMarker();
     return Scaffold(
       key: sKey,
       drawer: Theme(
@@ -273,7 +310,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () {
                 if (openNavigationDrawer) {
                   sKey.currentState!.openDrawer();
-                }else{
+                } else {
                   SystemNavigator.pop();
                 }
               },
@@ -410,7 +447,16 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       ElevatedButton(
                         child: Text('Taksi İste'),
-                        onPressed: () {},
+                        onPressed: () {
+                          if (Provider.of<AppInfo>(context, listen: false)
+                                  .userDropOffLocation !=
+                              null) {
+                            saveRideRequestInformation();
+                          } else {
+                            Fluttertoast.showToast(
+                                msg: 'Lütden gitmek istediğniz konumu seçiniz');
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                             primary: mycolor,
                             textStyle: TextStyle(
@@ -526,5 +572,95 @@ class _MainScreenState extends State<MainScreen> {
       circlesSet.add(originCircle);
       circlesSet.add(destinationCircle);
     });
+  }
+
+  initilaizeGeoFireListener() {
+    Geofire.initialize("activeDrivers");
+    Geofire.queryAtLocation(
+            userCurrentPosition!.latitude, userCurrentPosition!.longitude, 10)!
+        .listen((map) {
+      print(map);
+      if (map != null) {
+        var callBack = map['callBack'];
+
+        //latitude will be retrieved from map['latitude']
+        //longitude will be retrieved from map['longitude']
+
+        switch (callBack) {
+          case Geofire.onKeyEntered:
+            //herhangi bir sürücü çevrimiçi olarak aktif hale geldiğinde
+            ActiveNearbyAvaliableDrivers activeNearbyAvaliableDriver =
+                ActiveNearbyAvaliableDrivers();
+            activeNearbyAvaliableDriver.locationLatitude = map['latitude'];
+            activeNearbyAvaliableDriver.locationLongitude = map['longitude'];
+            activeNearbyAvaliableDriver.driverId = map['key'];
+            GeofireAssistants.activeNearbyAvaliableDriversList
+                .add(activeNearbyAvaliableDriver);
+            if (activeNearbyDriverKeysLoaded == true) {
+              displayActiveDriversOnUsersMap();
+            }
+
+            break;
+          //herhangi bir sürücü çevrimiçi görünmediğinde
+          case Geofire.onKeyExited:
+            GeofireAssistants.deleteOfflineDriverFromList(map['key']);
+            displayActiveDriversOnUsersMap();
+            break;
+          //sürücü hareket ettiğinde -konumu güncelle
+          case Geofire.onKeyMoved:
+            ActiveNearbyAvaliableDrivers activeNearbyAvaliableDriver =
+                ActiveNearbyAvaliableDrivers();
+            activeNearbyAvaliableDriver.locationLatitude = map['latitude'];
+            activeNearbyAvaliableDriver.locationLongitude = map['longitude'];
+            activeNearbyAvaliableDriver.driverId = map['key'];
+            GeofireAssistants.updateActiveNearbyAvaliableDriversLocation(
+                activeNearbyAvaliableDriver);
+            displayActiveDriversOnUsersMap();
+            break;
+          //çevrimiçi aktif sürücüleri users mapte göster
+          case Geofire.onGeoQueryReady:
+            activeNearbyDriverKeysLoaded = true;
+            displayActiveDriversOnUsersMap();
+
+            break;
+        }
+      }
+
+      setState(() {});
+    });
+  }
+
+  displayActiveDriversOnUsersMap() {
+    setState(() {
+      markerSet.clear();
+      circlesSet.clear();
+      Set<Marker> dirversMarkerSet = Set<Marker>();
+      for (ActiveNearbyAvaliableDrivers eachDriver
+          in GeofireAssistants.activeNearbyAvaliableDriversList) {
+        LatLng eachDriverActivePosition =
+            LatLng(eachDriver.locationLatitude!, eachDriver.locationLongitude!);
+        Marker marker = Marker(
+            markerId: MarkerId(eachDriver.driverId!),
+            position: eachDriverActivePosition,
+            icon: activeNearbyIcon!,
+            rotation: 360);
+        dirversMarkerSet.add(marker);
+      }
+      setState(() {
+        markerSet = dirversMarkerSet;
+      });
+    });
+  }
+
+  createActiveNearByDriverIconMarker() {
+    if (activeNearbyIcon == null) {
+      ImageConfiguration imageConfiguration =
+          createLocalImageConfiguration(context, size: Size(2, 2));
+      BitmapDescriptor.fromAssetImage(
+              imageConfiguration, "images/taksimarker.png")
+          .then((value) {
+        activeNearbyIcon = value;
+      });
+    }
   }
 }
