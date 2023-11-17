@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
@@ -11,10 +12,9 @@ import 'package:user_app/assistans/assistants_methods.dart';
 import 'package:user_app/assistans/geofire_assistants.dart';
 import 'package:user_app/global/global.dart';
 import 'package:user_app/infoHandler/app_info.dart';
-import 'package:user_app/main.dart';
 import 'package:user_app/mainScreens/search_places_screen.dart';
+import 'package:user_app/mainScreens/select_nearest_active_drivers.dart';
 import 'package:user_app/models/active_nearby_avaliable_drivers.dart';
-import 'package:user_app/splash_Screen/splash_screen.dart';
 import 'package:user_app/utils/constants.dart';
 import 'package:user_app/widgets/my_drawer.dart';
 import 'package:user_app/widgets/progress_dialog.dart';
@@ -48,6 +48,7 @@ class _MainScreenState extends State<MainScreen> {
   bool activeNearbyDriverKeysLoaded = false;
   BitmapDescriptor? activeNearbyIcon;
   List<ActiveNearbyAvaliableDrivers> onlineNearByAvailableDriversList = [];
+  DatabaseReference? referenceRideRequest;
   blackThemeGoogleMap() {
     newGoogleMapController!.setMapStyle('''
                     [
@@ -249,13 +250,37 @@ class _MainScreenState extends State<MainScreen> {
 
   saveRideRequestInformation() {
     //taksi isteğini kaydet
+    referenceRideRequest=FirebaseDatabase.instance.ref("Taksi istekleri").push();
+    var originLocation=Provider.of<AppInfo>(context,listen:false).userPickUpLocation;
+    var destinationLocation=Provider.of<AppInfo>(context,listen:false).userDropOffLocation;
+    Map originLocationMap={ 
+      "latitude":originLocation!.locationLatitude.toString(),
+      "longitude":originLocation.locationLongitude.toString()
+    };
+    Map destinationLocationMap={ 
+      "latitude":destinationLocation!.locationLatitude.toString(),
+      "longitude":destinationLocation.locationLongitude.toString()
+    };
+    Map userInformationMap={
+      "origin":originLocationMap,
+      "destination":destinationLocationMap,
+      "time":DateTime.now().toString(),
+      "username":userModelCurrentInfo!.name,
+      "userphone":userModelCurrentInfo!.phone,
+      "originaddres":originLocation.locationName,
+      "destinationaddress":destinationLocation.locationName,
+      "driverId":"waiting"
+    };
+    referenceRideRequest!.set(userInformationMap);
     onlineNearByAvailableDriversList =
         GeofireAssistants.activeNearbyAvaliableDriversList;
     searchNearestOnlineDrivers();
   }
 
   searchNearestOnlineDrivers() async {
+    //yakında taksi yoksa
     if (onlineNearByAvailableDriversList.length == 0) {
+      referenceRideRequest!.remove();
       setState(() {
         polyLineSet.clear();
         markerSet.clear();
@@ -265,14 +290,28 @@ class _MainScreenState extends State<MainScreen> {
       Fluttertoast.showToast(msg: 'Yakında müsait taksi yok.');
       Fluttertoast.showToast(msg: 'Daha sonra tekrar deneyin,Uygulam Yeniden Başlatılıyor..');
       Future.delayed(const Duration(milliseconds: 4000), () {
-        Navigator.push(context,MaterialPageRoute(builder:(c)=>MySplashScreen()));
+       SystemNavigator.pop();
         
       });
 
       return;
     }
+    //yakında taksi varsa
+    await retrieveOnlineDriversInformation(onlineNearByAvailableDriversList);
+    Navigator.push(context, MaterialPageRoute(builder:(c)=>SelectNearestActiveDriversScreen(referenceRideRequest:referenceRideRequest) ));
   }
-
+  retrieveOnlineDriversInformation(List onlineNearestDriversList)async{
+    DatabaseReference ref=FirebaseDatabase.instance.ref().child("drivers");
+    for(int i=0;i<onlineNearByAvailableDriversList.length;i++){
+       await ref.child(onlineNearestDriversList[i].driverId.toString())
+       .once()
+       .then((dataSnapshot) {
+        var driverKeyInfo=dataSnapshot.snapshot.value;
+        dList.add(driverKeyInfo);
+        
+       });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     createActiveNearByDriverIconMarker();
@@ -329,7 +368,7 @@ class _MainScreenState extends State<MainScreen> {
             right: 0,
             child: AnimatedSize(
               curve: Curves.easeIn,
-              duration: Duration(milliseconds: 120),
+              duration: const Duration(milliseconds: 120),
               child: Container(
                 height: searchLocationHeight,
                 decoration: const BoxDecoration(
@@ -354,7 +393,7 @@ class _MainScreenState extends State<MainScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 'Nereden?',
                                 style: TextStyle(
                                     color: Colors.white, fontSize: 12),
@@ -459,7 +498,7 @@ class _MainScreenState extends State<MainScreen> {
                         },
                         style: ElevatedButton.styleFrom(
                             primary: mycolor,
-                            textStyle: TextStyle(
+                            textStyle: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.bold)),
                       )
                     ],
@@ -489,6 +528,9 @@ class _MainScreenState extends State<MainScreen> {
     var directionDetailsInfo =
         await AssistanMethods.obtainOriginToDestinationDirectionDetails(
             originLatLng, destinationLatLng);
+    setState(() {
+      tripDirectiondetailsInfo=directionDetailsInfo;
+    });
     Navigator.pop(context);
     print('point"""""""""');
     print(directionDetailsInfo!.e_points!);
@@ -506,7 +548,7 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       Polyline polyline = Polyline(
           color: mycolor,
-          polylineId: PolylineId("PolylineID"),
+          polylineId: const PolylineId("PolylineID"),
           jointType: JointType.round,
           points: pLineCoordinatesList,
           startCap: Cap.roundCap,
@@ -536,7 +578,7 @@ class _MainScreenState extends State<MainScreen> {
     newGoogleMapController!
         .animateCamera(CameraUpdate.newLatLngBounds(boundsLatLng, 65));
     Marker originMarker = Marker(
-      markerId: MarkerId('originID'),
+      markerId: const MarkerId('originID'),
       infoWindow:
           InfoWindow(title: originPosition.locationName, snippet: 'Konum'),
       position: originLatLng,
@@ -544,7 +586,7 @@ class _MainScreenState extends State<MainScreen> {
     );
 
     Marker destinationMarker = Marker(
-      markerId: MarkerId('destinationID'),
+      markerId: const MarkerId('destinationID'),
       infoWindow:
           InfoWindow(title: destinationPosition.locationName, snippet: 'Hedef'),
       position: destinationLatLng,
